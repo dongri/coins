@@ -31,13 +31,9 @@ fn fetch_data_blocking(client: &CoinGeckoClient, vs_currency: &str) -> Result<Ve
 fn main() -> Result<()> {
     // First, test the API before setting up TUI
     let client = CoinGeckoClient::new();
-    
-    // Try to fetch data before entering TUI mode
-    eprintln!("Fetching cryptocurrency data...");
-    
+        
     let initial_coins = match fetch_data_blocking(&client, "usd") {
         Ok(coins) => {
-            eprintln!("Successfully loaded {} coins", coins.len());
             coins
         }
         Err(e) => {
