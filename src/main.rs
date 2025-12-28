@@ -28,7 +28,54 @@ fn fetch_data_blocking(client: &CoinGeckoClient, vs_currency: &str) -> Result<Ve
     })
 }
 
+const VERSION: &str = env!("CARGO_PKG_VERSION");
+const NAME: &str = env!("CARGO_PKG_NAME");
+
+fn print_version() {
+    println!("{} {}", NAME, VERSION);
+}
+
+fn print_help() {
+    println!("{} {} - Terminal-based cryptocurrency price tracker", NAME, VERSION);
+    println!();
+    println!("USAGE:");
+    println!("    coins [OPTIONS]");
+    println!();
+    println!("OPTIONS:");
+    println!("    -h, --help       Print help information");
+    println!("    -V, --version    Print version information");
+    println!();
+    println!("CONTROLS:");
+    println!("    ↑/k              Move selection up");
+    println!("    ↓/j              Move selection down");
+    println!("    PgUp/PgDn        Page up/down");
+    println!("    g/G              Go to top/bottom");
+    println!("    T                Cycle chart timeframe");
+    println!("    r                Refresh data");
+    println!("    q/Esc            Quit");
+}
+
 fn main() -> Result<()> {
+    // Handle command line arguments
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() > 1 {
+        match args[1].as_str() {
+            "-V" | "--version" => {
+                print_version();
+                return Ok(());
+            }
+            "-h" | "--help" => {
+                print_help();
+                return Ok(());
+            }
+            _ => {
+                eprintln!("Unknown option: {}", args[1]);
+                eprintln!("Use --help for usage information");
+                std::process::exit(1);
+            }
+        }
+    }
+
     // First, test the API before setting up TUI
     let client = CoinGeckoClient::new();
         
