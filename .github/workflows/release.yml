@@ -82,3 +82,65 @@ jobs:
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update Homebrew Tap
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          
+          # Calculate SHA256 for each platform
+          SHA256_ARM64=$(shasum -a 256 artifacts/coins-macos-arm64.tar.gz/coins-macos-arm64.tar.gz | awk '{print $1}')
+          SHA256_X64=$(shasum -a 256 artifacts/coins-macos-x64.tar.gz/coins-macos-x64.tar.gz | awk '{print $1}')
+          SHA256_LINUX=$(shasum -a 256 artifacts/coins-linux-x64.tar.gz/coins-linux-x64.tar.gz | awk '{print $1}')
+          
+          git clone https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/dongri/homebrew-tap.git
+          cd homebrew-tap
+          
+          cat > coins.rb << 'FORMULAEOF'
+          class Coins < Formula
+            desc "Terminal-based cryptocurrency price tracker"
+            homepage "https://github.com/dongri/coins"
+            version "VERSION_PLACEHOLDER"
+            license "MIT"
+
+            on_macos do
+              if Hardware::CPU.arm?
+                url "https://github.com/dongri/coins/releases/download/v#{version}/coins-macos-arm64.tar.gz"
+                sha256 "SHA256_ARM64_PLACEHOLDER"
+              else
+                url "https://github.com/dongri/coins/releases/download/v#{version}/coins-macos-x64.tar.gz"
+                sha256 "SHA256_X64_PLACEHOLDER"
+              end
+            end
+
+            on_linux do
+              url "https://github.com/dongri/coins/releases/download/v#{version}/coins-linux-x64.tar.gz"
+              sha256 "SHA256_LINUX_PLACEHOLDER"
+            end
+
+            def install
+              bin.install "coins"
+            end
+
+            test do
+              assert_match "coins", shell_output("#{bin}/coins --version", 2)
+            end
+          end
+          FORMULAEOF
+          
+          # Remove leading spaces from heredoc content
+          sed -i 's/^          //' coins.rb
+          
+          # Replace placeholders with actual values
+          sed -i "s/VERSION_PLACEHOLDER/${VERSION}/g" coins.rb
+          sed -i "s/SHA256_ARM64_PLACEHOLDER/${SHA256_ARM64}/g" coins.rb
+          sed -i "s/SHA256_X64_PLACEHOLDER/${SHA256_X64}/g" coins.rb
+          sed -i "s/SHA256_LINUX_PLACEHOLDER/${SHA256_LINUX}/g" coins.rb
+          
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add coins.rb
+          git commit -m "Update coins to v${VERSION}"
+          git push
